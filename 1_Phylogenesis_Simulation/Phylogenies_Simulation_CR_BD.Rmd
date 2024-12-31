@@ -1,0 +1,316 @@
+---
+title: "Phylogenies Simulation Under Constant-Rate of Birth-Death"
+author: "Juan Manuel Sancho Romero"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`' 
+output: 
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+    theme: cerulean
+    higlight: pygments
+    code_folding: show
+  pdf_document:
+    keep_tex: yes
+    toc: yes
+params:
+  valor.seed: 123      # Elige un valor de set.seed
+  n_sim: 1000          # Número de simulaciones a realizar
+  time_limit: 5        # Límite de tiempo para el cálculo de crown_limit
+  time: 0.5            # Tiempo inicial o crown_age (por ejemplo, la edad del árbol)
+  file_path: "C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/1_Phylogenesis_Simulation/resultados_simulaciones.csv"  # Ruta para guardar los resultados
+  r0_min: 0.01         # Valor mínimo para la tasa de nacimiento
+  r0_max: 4.00         # Valor máximo para la tasa de nacimiento
+  a0_min: 0.01         # Valor mínimo para 'a0' (proporción de tasas de nacimiento y muerte)
+  a0_max: 0.50         # Valor máximo para 'a0'
+  #frac0: 1             # Fracción de supervivencia (fijo a 1) 
+  frac0_min: 0.5       # Fracción de supervivencia mínimo 
+  frac0_max: 1         # Fracción de supervivencia máximo
+  n_tips_min: 10       # Valor mínimo para el número de tips
+  n_tips_max: 50       # Valor máximo para el número de tips
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(knitr)
+# Establecemos la configuración por defecto del documento
+opts_chunk$set(comment = NA, prompt = TRUE, tidy = FALSE, 
+               fig.width = 7, fig.height = 7,echo = TRUE, 
+               message = FALSE, warning = FALSE, cache=FALSE)
+```
+
+
+# 1. INSTALLING PACKAGES
+```{r packages, message=FALSE, echo=FALSE, warning=FALSE}
+libraries <- c("TreeSim", "ape")
+check.libraries <- is.element(libraries, installed.packages()[, 1])==FALSE
+libraries.to.install <- libraries[check.libraries]
+if (length(libraries.to.install!=0)) {
+  install.packages(libraries.to.install)
+}
+library(TreeSim)
+library(ape)
+```
+
+# 2.DEFINING PARAMETERS' NAMES
+```{r}
+file_path <- params$file_path    # Ruta para guardar los resultados
+n_sim <- params$n_sim            # Número de simulaciones a realizar
+time_limit <- params$time_limit  # Límite de tiempo para el cálculo de crown_limit
+time <- params$time              # Tiempo inicial o crown_age (por ejemplo, la edad del árbol)
+r0_min <- params$r0_min          # Valor mínimo para la tasa de nacimiento
+r0_max <- params$r0_max          # Valor máximo para la tasa de nacimiento
+a0_min <- params$a0_min          # Valor mínimo para 'a0' (proporción de tasas)
+a0_max <- params$a0_max          # Valor máximo para 'a0'
+#frac0 <- params$frac0            # Fracción de supervivencia (por ahora fijo a 1)
+frac0_min <- params$frac0_min    # Fracción de supervivencia mínimo 
+frac0_max <- params$frac0_max    # Fracción de supervivencia máximo
+n_tips_min <- params$n_tips_min  # Valor mínimo para el número de tips
+n_tips_max <- params$n_tips_max  # Valor máximo para el número de tips
+```
+
+# 3. CODE TO SIMULATE N PHYLOGENIES RANDOMLY
+
+**This code executes Phylogenies Simulations Under Constant-Rate of Birth-Death using the parameters distributions contained in R Package `TreeSim`:**
+
+## 3.1 FIRST, WE CALL THE FUNCTIONS FROM THE GITHUB REPOSITORY: "simulations/code/Stadler-LTTplots-functions.R"
+
+```{r}
+source("https://raw.githubusercontent.com/guillermoih/phylo_estimation/refs/heads/master/simulations/code/Stadler-LTTplots-functions.R")
+```
+
+## 3.2 NEW STRUCTURE (REORGANIZED) USING PARAMS
+
+```{r}
+set.seed(params$valor.seed) # Reproducibilidad (semilla aleatoria predefinida)
+
+# Definir parámetros de simulación
+n_sim <- 1000               # Número de simulaciones a realizar
+i <- 0                      # Contador de simulaciones completadas
+data <- data.frame(         # Data frame vacío para almacenar resultados
+  n_tips = numeric(),       # Número de tips o terminales
+  r0 = numeric(),           # Tasa de nacimiento
+  a0 = numeric(),           # Proporción entre tasas de nacimiento y muerte
+  frac0 = numeric(),        # Fracción de supervivencia
+  tree = character(),       # Representación del árbol simulado
+  stringsAsFactors = FALSE
+)
+
+# Función para validar la simulación
+validate_simulation <- function(simulation, n_tips) {
+  crown_age_matrix <- origin(simulation)
+  df_crown_age <- as.data.frame(crown_age_matrix)
+  crown_age <- df_crown_age$origintime
+  
+  # Comprobar si la simulación contiene la cantidad correcta de tips
+  if (length(df_crown_age$origintime) == 0) {
+    return("Simulation failed - it contains less tips")
+  } else if (count_living(simulation[[1]]) != n_tips) {
+    return("Simulation failed - it contains more living tips")
+  } else if (count_dead(simulation[[1]]) != 0) {
+    return("Simulation failed - it contains more death tips")
+  }
+  
+  # Si pasa todas las validaciones
+  return("valid")
+}
+
+# Función para guardar los resultados de la simulación
+save_simulation_results <- function(simulation, n_tips, r0, a0, frac0, data) {
+  tree <- write.tree(simulation, append = TRUE, digits = 10, tree.names = TRUE)[1]
+  row <- c(n_tips, r0, a0, frac0, tree)
+  data <- rbind(data, row)  # Agregar la fila al data frame
+  return(data)
+}
+
+# Bucle principal de simulación
+while (i < n_sim) {
+  
+  # Generar parámetros aleatorios
+  r0 <- runif(1, r0_min, r0_max)               # Tasa de nacimiento
+  a0 <- runif(1, a0_min, a0_max)               # Proporción de tasas
+  frac0 <- runif(1, frac0_min, frac0_max)      # Proporción de tasas
+
+  n_tips <- round(runif(1, n_tips_min, n_tips_max))
+ # Número de tips
+  mu0 <- (a0 * r0) / (1 - a0)              # Tasa de muerte
+  lamb0 <- r0 + mu0                        # Tasa de nacimiento efectiva
+  
+  # Simulación del árbol filogenético
+  simulation <- sim.bd.taxa(n_tips, 1, lamb0, mu0, frac0, complete = FALSE)
+  
+  # Validar la simulación
+  validation_result <- validate_simulation(simulation, n_tips)
+  
+  if (validation_result != "valid") {
+    print(paste(Sys.time(), "simulation", validation_result))
+    flush.console()
+  } else {
+    # Si es válida, guardar los resultados
+    data <- save_simulation_results(simulation, n_tips, r0, a0, frac0, data)
+    i <- i + 1
+
+    # Mensaje de progreso
+    if (i %% 1 == 0) {
+      print(paste(Sys.time(), i, "simulations processed"))
+    }
+  }
+  
+  # Guardar los resultados en archivo CSV
+  write.table(data, 
+              file = file_path, 
+              sep = "|", 
+              quote = FALSE, 
+              row.names = FALSE, 
+              col.names = c("n_tips", "r0", "a0", "frac0", "tree"),
+              dec = ".")
+}
+
+```
+
+## 3.3 OLD STRUCTURE USING PARAMS
+
+```{r}
+#set.seed(params$valor.seed)
+
+# Número de simulaciones que se desean realizar
+n_sim <- 1000
+
+# Contador de simulaciones completadas
+i <- 0
+
+# Data frame vacío donde se guardarán los resultados de cada simulación
+data <- data.frame(
+  n_tips = numeric(),    # Número de tips o terminales en el árbol simulado
+  r0 = numeric(),        # Tasa de nacimiento
+  a0 = numeric(),        # Proporción entre tasas de nacimiento y muerte
+  frac0 = numeric(),     # Fracción de supervivencia
+  tree = character(),    # Representación del árbol simulado
+  stringsAsFactors = FALSE
+)
+
+# Bucle para ejecutar las simulaciones hasta alcanzar el número deseado (n_sim)
+while (i < n_sim) {
+
+    # Valor aleatorio para la tasa de nacimiento 'r0' 
+    r0 <- runif(1, r0_min, r0_max)
+
+    # Valor aleatorio para la proporción de tasas de nacimiento y muerte 'a0'
+    a0 <- runif(1, a0_min, a0_max)
+    
+    # Número aleatorio de tips
+    n_tips <- round(runif(1, n_tips_min, n_tips_max))
+
+    # Tasa de muerte 'mu0' y tasa de nacimiento efectiva 'lamb0'
+    mu0 <- (a0 * r0) / (1 - a0)
+    lamb0 <- r0 + mu0
+
+    # Simulación de un árbol filogenético usando los parámetros definidos
+    simulation <- sim.bd.taxa(n_tips, 1, lamb0, mu0, frac0, complete = FALSE)
+
+    # Calculo de la edad del árbol (crown age) usando la altura máxima de los nodos del árbol
+    crown_age_matrix <- origin(simulation)
+    df_crown_age <- as.data.frame(crown_age_matrix)
+    crown_age <- df_crown_age$origintime
+    crown_limit <- -time - time_limit   
+
+    # Validación de la simulación: verifica que se hayan cumplido ciertas condiciones
+    if (length(df_crown_age$origintime) == 0) {
+        print(paste(Sys.time(), "simulation failed, it contains less tips"))
+        flush.console()
+    } else if (count_living(simulation[[1]]) != n_tips) {
+        print(paste(Sys.time(), "simulation failed, it contains more living tips"))
+        flush.console()
+    } else if (count_dead(simulation[[1]]) != 0) {
+        print(paste(Sys.time(), "simulation failed, it contains more death tips"))
+        flush.console()
+    } else {
+        # Si la simulación es válida, guarda los resultados
+        tree <- write.tree(simulation, append = TRUE, digits = 10, tree.names = TRUE)[1]
+        row <- c(n_tips, r0, a0, frac0, tree)
+        data <- rbind(data, row)
+
+        # Incrementa el contador de simulaciones exitosas
+        i <- i + 1
+
+        # Muestra un mensaje de progreso cada vez que se procesa una simulación
+        if (i %% 1 == 0) {
+            print(paste(Sys.time(), i, "simulations processed"))
+        }
+    }
+
+    # Guarda los resultados en un archivo .csv con formato delimitado por "|"
+    write.table(data, file = file_path, sep = "|", quote = FALSE,
+                row.names = FALSE, col.names = c("n_tips", "r0", "a0", "frac0", "tree"))
+}
+
+```
+
+## 3.4 OLD CODE WITHOUT USING PARAMS (ORIGINAL)
+
+```{r}
+set.seed(params$valor.seed)
+
+#source("directorio paquete stadler")
+n_sim <- 1000
+i <- 0
+
+data <- data.frame(n_tips=numeric(), r0=numeric(), 
+a0=numeric(),frac0=numeric(), tree=character(), stringsAsFactors = 
+FALSE)
+
+while (i < n_sim) {
+
+     r0 <- runif(1, 0.01, 4)
+     a0 <- runif(1, 0.01, 0.5)
+     frac0 <- 1
+     n_tips <- round(runif(1, 10, 50))
+
+     # Calculate mu and lambda
+     mu0 <- (a0*r0)/(1-a0)
+     lamb0 <- r0+mu0
+
+
+     # Simulate phylogenetic trees
+     simulation <- sim.bd.taxa(n_tips, 1, lamb0, mu0, frac0, complete=FALSE)
+
+
+     crown_age_matrix <- origin(simulation)
+     df_crown_age <- as.data.frame(crown_age_matrix)
+     crown_age <- df_crown_age$origintime
+     crown_limit <- -time - time_limit
+
+     if (length(df_crown_age$origintime) == 0){
+         print(paste(Sys.time(), " simulation failed, it contains less tips"))
+         flush.console()
+     } else if (count_living(simulation[[1]]) != n_tips) {
+         print(paste(Sys.time(), " simulation failed, it contains more 
+living tips"))
+         flush.console()
+     } else if (count_dead(simulation[[1]]) != 0) {
+         print(paste(Sys.time(), " simulation failed, it contains more 
+death tips"))
+         flush.console()
+     } else {
+         # Save .csv row
+         tree <- write.tree(simulation, append=TRUE, digits=10, 
+tree.names=TRUE)[1]
+         row <- c(n_tips, r0, a0, frac0, tree)
+         data <- rbind(data, row)
+
+         i <- i + 1
+
+         if(i%%1==0) {
+             print(paste(Sys.time(), i, " simulations processed"))
+         }
+     }
+write.table(data, 
+            file = file_path, 
+            sep = "|", 
+            quote = FALSE, 
+            row.names = FALSE,
+            col.names = c("n_tips", "r0", "a0", "frac0", "tree"))
+}
+```
+
