@@ -1,0 +1,278 @@
+---
+title: "4. Running the BIB model"
+author: "Juan Manuel Sancho Romero"
+date: "2024-12-29"
+output: 
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+    theme: cerulean
+    higlight: pygments
+    code_folding: show
+  pdf_document:
+    keep_tex: yes
+    toc: yes
+params:
+  valor.seed: 123      # Elige un valor de set.seed
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(knitr)
+# Establecemos la configuración por defecto del documento
+opts_chunk$set(comment = NA, prompt = TRUE, tidy = FALSE, 
+               fig.width = 7, fig.height = 7,echo = TRUE, 
+               message = FALSE, warning = FALSE, cache=FALSE)
+```
+
+# 1. INSTALLING `RevBayes` ON THE PC AND R
+
+DESCARGA RevBayes: <https://revbayes.github.io/download>
+
+Tutoriales sobre el lenguaje `Rev`: 
+
+<https://revbayes.github.io/tutorials/>
+
+Tutoriales de uso en R:
+
+<https://rdrr.io/github/revbayes/Revticulate/f/vignettes/BasicTutorial.Rmd>
+
+<https://github.com/revbayes/Revticulate>
+
+<https://revbayes.github.io/tutorials/>
+
+<https://calcharp.r-universe.dev/Revticulate/doc/manual.html#callRev>
+
+Instalación en R.
+```{r packages, message=FALSE, echo=FALSE, warning=FALSE}
+if (!require(Revticulate)) install.packages("Revticulate", dep=TRUE)
+
+devtools::install_github("paleantology/Revticulate")
+```
+
+# 2. CREATING THE DIRECTORIES AND ESTABLISHING THE WORKING ENVIRONMENT
+
+Para mayor simplicidad agrupamos en un mismo directorio (`scripts`) los archivos `nexus` finales (subdirectorio `data`) y los scripts del modelo BIB. El origen de los archivos `nexus` es el directorio `Final_Files_dir` obtenido en el paso (3), y será renombrado como subdirectorio `Data`)
+
+Además, se copian al azar solo uno de los 5 alineamientos existentes por árbol. Para ello serán seleccionados uno de los 5 subíndices finales que tenemos por cada `tree_índice_valoresparámetros_subíndice`. 
+
+De esta manera el directorio `data` contendrá 50 archivos `nexus`, uno por cada árbol simulado.
+
+```{python}
+import os
+import shutil
+import random
+
+# Directorios
+origen = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\3_Sim_Trait_Evolution\Final_Files_dir"
+destino = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\4_RevBayes\scripts\data"
+
+# Crear el directorio destino si no existe
+os.makedirs(destino, exist_ok=True)
+
+# Diccionario para agrupar archivos por su índice de árbol
+arboles = {}
+
+# Agrupar archivos por índice
+for archivo in os.listdir(origen):
+    if archivo.endswith(".nex"):  # Asegurar que sean archivos Nexus
+        partes = archivo.split("_")  # Dividir el nombre por "_"
+        indice_arbol = partes[1]  # Obtener el índice del árbol (segundo elemento)
+        
+        # Añadir el archivo al grupo correspondiente
+        if indice_arbol not in arboles:
+            arboles[indice_arbol] = []
+        arboles[indice_arbol].append(archivo)
+
+# Seleccionar y copiar un archivo al azar por cada grupo
+for indice_arbol, archivos in arboles.items():
+    archivo_seleccionado = random.choice(archivos)  # Seleccionar un archivo al azar
+    ruta_origen = os.path.join(origen, archivo_seleccionado)
+    ruta_destino = os.path.join(destino, archivo_seleccionado)
+    shutil.copy2(ruta_origen, ruta_destino)  # Copiar archivo
+
+print(f"Archivos seleccionados y copiados de {origen} a {destino}.")
+
+```
+
+**Para que el nombre de los ficheros sean compatibles con BIB hay que modificar los "." de los nombres por "_"**
+```{r}
+# Directorio destino
+destino <- "C:\\Users\\juanm\\Desktop\\MASTER_BIOINFORMATICA\\Practicas_UOC\\4_RevBayes\\scripts\\data"
+
+# Obtener la lista de ficheros .nex en el directorio
+file_list <- list.files(destino, pattern = "\\.nex$", full.names = TRUE)
+
+# Iterar sobre cada fichero y modificar el nombre
+for (file_path in file_list) {
+  # Obtener el nombre base del fichero sin el directorio
+  file_name <- basename(file_path)
+  
+  # Reemplazar todos los puntos excepto el último (el de .nex)
+  new_file_name <- sub("\\.nex$", "", file_name)  # Remover temporalmente la extensión .nex
+  new_file_name <- gsub("\\.", "_", new_file_name)  # Reemplazar puntos por guiones bajos
+  new_file_name <- paste0(new_file_name, ".nex")  # Añadir nuevamente la extensión
+  
+  # Crear la ruta completa para el nuevo nombre
+  new_file_path <- file.path(dirname(file_path), new_file_name)
+  
+  # Renombrar el archivo
+  file.rename(file_path, new_file_path)
+  
+  cat("Archivo renombrado:", file_path, "->", new_file_path, "\n")
+}
+
+```
+
+**Para simplificar el proceso en la ejecucion de BIB, crearemos un archivo `txt` con los nombres de los ficheros, según la estructura "data/file_name.nex"** 
+El contenido del fichero `filenames.txt` de salida se guardará en la carpeta `scripts`, y podrá ser copiado y pegado en el script `Molecular_model.Rev` como la variable `filenames` (vector of strings).
+
+```{python}
+import os
+
+# Directorio de destino
+directorio = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\4_RevBayes\scripts\data"
+
+# Obtener la lista de archivos en el directorio
+archivos = [f for f in os.listdir(directorio) if f.endswith('.nex')]  # Solo archivos con extensión .nex
+
+# Crear una lista con los nombres de archivos en el formato deseado
+filenames = [f'\t\t"data/{f}"' for f in archivos]
+
+# Unir los nombres en un string con coma y salto de línea entre cada uno
+salida = "filenames <- [\n" + ",\n".join(filenames) + "\n]"
+
+# Ruta del archivo de salida
+ruta_salida = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\4_RevBayes\scripts\filenames.txt"
+
+# Escribir la salida en un archivo txt
+with open(ruta_salida, "w") as archivo_salida:
+    archivo_salida.write(salida)
+
+print("Archivo de salida creado con éxito.")
+
+
+```
+
+Comprobamos que hay 50 líneas en el fichero con los nombres. Las dos líneas extras se deben al inicio `filenames <- [` y al cierre de la matriz `]`.
+```{python}
+# Ruta del archivo de salida
+ruta_salida = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\4_RevBayes\scripts\filenames.txt"
+
+# Contar el número de líneas en el archivo
+with open(ruta_salida, "r") as archivo_salida:
+    lineas = archivo_salida.readlines()
+
+# Mostrar el número de líneas
+numero_lineas = len(lineas)-2
+print(f"El archivo tiene {numero_lineas} líneas.")
+```
+
+Lo mismo pero obteniendo solo los nombres de los ficheros
+```{python}
+import os
+
+# Directorio de destino
+directorio = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\4_RevBayes\scripts\data"
+
+# Obtener la lista de archivos en el directorio
+archivos = [f for f in os.listdir(directorio) if f.endswith('.nex')]  # Solo archivos con extensión .nex
+
+# Crear una lista con los nombres de archivos en el formato deseado
+nombres_archivos = [f'"data/{f}"' for f in archivos]
+
+# Unir los nombres en un string con coma entre cada uno y salto de línea después de cada archivo
+salida = ",\n".join(nombres_archivos)
+
+# Ruta del archivo de salida
+ruta_salida = r"C:\Users\juanm\Desktop\MASTER_BIOINFORMATICA\Practicas_UOC\4_RevBayes\scripts\nombres_archivos.txt"
+
+# Escribir la salida en un archivo txt
+with open(ruta_salida, "w") as archivo_salida:
+    archivo_salida.write(salida)
+
+print("Archivo de salida creado con éxito.")
+
+```
+
+Establecemos el directorio de trabajo donde se encuentran los scripts del modelo y los datos.
+```{r}
+setwd("C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/4_RevBayes/scripts")
+```
+Si estamos en la consola del sistema como `Windows PowerShell` o `Bash`, se usa el comando `cd`, por ejemplo:
+```
+cd "C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/4_RevBayes/scripts"
+```
+
+**NO HE LOGRADO INSTALAR REVBAYES EN ENTORNO DE R** Estos son los pasos que he seguido según los tutoriales:
+A continuación si ejecutamos las siguientes líneas se abre el "environment" de R, donde se debe escribir lo siguiente para indicar la ruta del ejecutable del programa `RevBayes`: `rb={absolute path to revbayes}`
+En mi caso:
+rb={"C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/4_RevBayes/revbayes-v1.2.5-win64/revbayes-v1.2.5/bin/rb.exe"}
+
+```{r}
+usethis::edit_r_environ()
+```
+
+Cargamos la librería y el entorno de `RevBayes`
+```{r}
+library(Revticulate)
+knitRev()
+#repRev(path = Sys.getenv("C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/4_RevBayes/revbayes-v1.2.5-win64/revbayes-v1.2.5/bin/rb.exe"), viewCode = FALSE, coerce = TRUE, use_wd = TRUE)
+```
+
+# 3. RUNNING THE BIB MODEL
+
+Ahora ejecutamos BIB usando los dos scripts (molecular y biogeográfico) que han sido adaptados previamente a nuestros datos simulados.
+
+**NO LO HE LOGRADO IMPLEMENTAR EN R** Según los tutoriales sería:
+Primero llamamos al modelo molecular.
+```{rb}
+callRevFromTerminal("Molecular_model_adapted.Rev")
+```
+Y después el modelo biogeográfico.
+```{rb}
+callRevFromTerminal("Biogeo_model_adapted.Rev")
+```
+Output files can then be explored and visualized with the `RevGadgets` package (<https://calcharp.r-universe.dev/Revticulate/doc/manual.html#callRev>).
+
+## RUNNING BIB MODEL ON THE WINDOWS CONSOLE
+
+También se puede realizar directamente en la terminal usando `source` como se indica en el repositorio <https://github.com/isabelsanmartin/Phylogenetics-Workshop-Chamela.git>:
+
+First, we set the working directory
+```
+setwd("C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/4_RevBayes/scripts")
+```
+Si estamos en la consola del sistema como `Windows PowerShell`, se usa el comando `cd`, por ejemplo:
+```
+cd "C:/Users/juanm/Desktop/MASTER_BIOINFORMATICA/Practicas_UOC/4_RevBayes/scripts"
+```
+Llamamos al ejecutable usando
+```
+rb
+```
+Then, we run the molecular model. This script will set up the molecular model we described above.
+```
+source("Molecular_model_adapted.Rev")
+```
+Finally, we run the biogeographic model. This script will set up the biogeographic model we described above, and run the analysis.
+```
+source("Biogeo_model_adapted.Rev")
+```
+
+## Visualize the results
+Open Tracer to visualize the results and summarize the posterior probabilities for the parameters in the biogeographic model: dispersal rates between the island groups, and between these and the mainland, and the carrying capacities for each island-group and the Mainland. 
+
+Assess the behaviour of the MCMC by checking for stationarity (after the burnin) and appropriate ESS values (> 200). Compare the posterior probabililies of the six rates and the four stationary frequencies (you can use the "marginal density" button or the "estimates" button. OBS: Here, p1 is p for the Eastern Islands, p2, the Central Islands, p3, the Western Islands, and p4, the Mainland. The rates are numbered by their position in the Q matrix: r1 (EI <> CI), r2 (EI <> WI), r3 (EI <> M), r4 (CI <> WI), r5 (CI <> M), r6 (WI <> M).
+
+## Questions
+1. Can you find any general pattern in your results that you can connect to the paleogeography of this archipelago?
+
+2. Do you observe any correlations between the biogeographic patterns and abiotic factors such as island size or geographic distance between islands? (Hint: Compare your estimates with Figure 1).
+
+3. In this exercise, we have a mixed dataset with groups from different taxonomic groups. Do you think this is a good idea? How would you improve the analysis?
+
+
+
