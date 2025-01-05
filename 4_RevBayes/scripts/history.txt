@@ -1,0 +1,59 @@
+clearRev()
+clear()
+directory <- "data/"
+# Usa el comando system() para listar los archivos del directorio
+file_list <- system("ls data/", returnOutput = TRUE)
+# Agrega el prefijo del directorio a cada archivo
+filenames <- [ directory + file for file in file_list ]
+# Imprime los nombres de los archivos
+print(filenames)
+directory <- "data/"
+system("dir /b data > temp_files.txt")
+file_list <- readLines("temp_files.txt")
+temp_content <- readCharacter("temp_files.txt")
+file_list <- temp_content.split("\\n")
+clear()
+directory <- "data/"
+file_list <- listFiles(directory, allFiles = TRUE, recursive = FALSE, includeDirs = FALSE)
+print(file_list)
+filenames <- []
+# Recorre cada archivo en file_list y aade la ruta completa (prefijo 'data/')
+for (file in file_list) {
+    # Agrega el prefijo 'data/' a cada archivo
+    filenames <- filenames + [ directory + file ]
+}
+# Imprime la lista de archivos con su ruta completa
+print(filenames)
+# Inicializa un Vector<String> vaco para almacenar las rutas de los archivos
+filenames <- Vector<String>()
+# Recorre cada archivo en file_list y aade la ruta completa (prefijo 'data/')
+for (file in file_list) {
+    # Agrega el prefijo 'data/' a cada archivo
+    filenames <- filenames + [ directory + file ]
+}
+# Imprime la lista de archivos con su ruta completa
+print(filenames)
+filenames <- Vector<String>()
+filenames <- Vector<String>
+filenames <- Vector<String
+filenames <- Vector<String()
+filenames <- [ ]
+file_list_vector <- split(file_list, ",")
+filenames <- [file_list]
+print(filenames)
+clear()
+gtwd()
+getwd(9
+quit
+getwd()
+source("Molecular_model_adapted.Rev")
+names_list <- listFiles(directory, allFiles = TRUE, recursive = FALSE, includeDirs = FALSE)
+filenames <- [v(names_list)]
+names_vector <- paste0("[\\n ", paste0("\\"", filenames, "\\"", collapse = ",\\n "), "\\n]")
+names_list <- listFiles(directory, allFiles = TRUE, recursive = FALSE, includeDirs = FALSE)
+filenames <- paste0("[\\n ", paste0("\\"", names_list, "\\"", collapse = ",\\n "), "\\n]")
+filenames <- v(names_list)
+print(filesnames)
+print(filenames)
+getwd()
+source(Molecular_model_adapted.Rev)
