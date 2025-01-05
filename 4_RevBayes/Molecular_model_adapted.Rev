@@ -1,0 +1,165 @@
+# This file processes all datasets jointly. We assume each group has its own molecular model, but shares the biogeographic model.
+
+# We assume that all the molecular and the biogeographic data are in
+# a single file for each genus. The molecular data need to be in the 
+# first data matrix in each file, and the biogeographic data in the 
+# second data matrix. The biogeographic
+# states need to be the same across groups. 
+
+# Read in all molecular data matrices into the vector D
+# Read in all biogeographic matrices into the vector B
+# Also set age calibrations for each group
+
+# Definimos el path del directorio 
+#directory <- "data/"
+
+# Crear listado con los nombres de los archivos
+#names_list <- listFiles(directory, allFiles = TRUE, recursive = FALSE, includeDirs = FALSE)
+#filenames <- v(names_list)
+filenames <- [	"data/tree_10_46_2_872_0_462_0_57_2.nex",
+		"data/tree_11_35_1_408_0_045_0_634_5.nex",
+		"data/tree_12_12_3_074_0_393_0_847_2.nex",
+		"data/tree_13_18_2_043_0_23_0_641_1.nex",
+		"data/tree_14_21_1_015_0_436_0_715_2.nex",
+		"data/tree_15_12_3_167_0_377_0_91_2.nex",
+		"data/tree_16_23_2_769_0_142_0_588_1.nex",
+		"data/tree_17_17_3_205_0_044_0_78_1.nex",
+		"data/tree_18_21_1_169_0_061_0_54_4.nex",
+		"data/tree_19_46_3_405_0_494_0_733_2.nex",
+		"data/tree_1_30_2_544_0_035_0_517_2.nex",
+		"data/tree_20_24_1_805_0_259_0_86_3.nex",
+		"data/tree_21_18_2_802_0_289_0_97_5.nex",
+		"data/tree_22_36_3_534_0_312_0_976_1.nex",
+		"data/tree_23_28_0_41_0_185_0_961_2.nex",
+		"data/tree_24_15_0_934_0_439_0_646_5.nex",
+		"data/tree_25_37_1_443_0_258_0_759_1.nex",
+		"data/tree_26_47_3_78_0_399_0_828_4.nex",
+		"data/tree_27_49_2_689_0_365_0_957_2.nex",
+		"data/tree_28_29_1_793_0_125_0_508_5.nex",
+		"data/tree_29_11_2_153_0_045_0_636_2.nex",
+		"data/tree_2_22_0_72_0_359_0_935_5.nex",
+		"data/tree_30_27_1_075_0_327_0_906_4.nex",
+		"data/tree_31_28_2_422_0_404_0_787_3.nex",
+		"data/tree_32_34_2_379_0_364_0_839_4.nex",
+		"data/tree_33_24_1_136_0_051_0_646_4.nex",
+		"data/tree_34_17_1_385_0_29_0_513_4.nex",
+		"data/tree_35_19_0_844_0_102_0_975_4.nex",
+		"data/tree_36_11_3_884_0_142_0_854_3.nex",
+		"data/tree_37_15_3_249_0_446_0_744_1.nex",
+		"data/tree_38_28_2_817_0_2_0_793_4.nex",
+		"data/tree_39_33_0_71_0_165_0_777_2.nex",
+		"data/tree_3_11_0_265_0_297_0_896_2.nex",
+		"data/tree_40_24_0_662_0_087_0_928_3.nex",
+		"data/tree_41_44_3_249_0_021_0_945_3.nex",
+		"data/tree_42_47_2_832_0_183_0_541_5.nex",
+		"data/tree_43_42_0_803_0_03_0_517_5.nex",
+		"data/tree_44_37_0_538_0_464_0_764_4.nex",
+		"data/tree_45_35_3_57_0_269_0_55_3.nex",
+		"data/tree_46_35_3_321_0_09_0_806_3.nex",
+		"data/tree_47_11_1_303_0_317_0_532_4.nex",
+		"data/tree_48_49_2_384_0_213_0_618_2.nex",
+		"data/tree_49_40_0_041_0_113_0_672_5.nex",
+		"data/tree_4_25_2_474_0_423_0_814_2.nex",
+		"data/tree_50_47_0_046_0_214_0_645_5.nex",
+		"data/tree_5_19_3_992_0_245_0_887_1.nex",
+		"data/tree_6_48_3_02_0_012_0_51_3.nex",
+		"data/tree_7_24_0_728_0_146_0_842_4.nex",
+		"data/tree_8_26_2_68_0_443_0_509_4.nex",
+		"data/tree_9_20_2_437_0_431_0_789_4.nex"
+]
+
+
+for ( i in 1:filenames.size() )
+{
+    X <- readDiscreteCharacterData( filenames[i] )
+
+    D[i] <- X[1]
+    B[i] <- X[2]
+}
+
+# Define the molecular model for each group
+mvi = 1
+
+
+for ( i in 1:D.size() )
+{
+    # Define priors for elements of rate matrix
+    pi_M[i] ~ dnDirichlet( v(1,1,1,1) )
+    r_M[i]  ~ dnDirichlet( v(1,1,1,1,1,1) )
+
+    # Define rate matrix
+    Q_M[i] := fnGTR( r_M[i], pi_M[i] )
+
+    # Clock rate: We use an exponential prior with expectation 1/1000=0.001
+    # because the dataset is made up of chloroplast markers, which are typically between  10E-4 and 10E-3.
+    
+    clockRate_M[i] ~ dnExponential( 100.0 ) 
+
+    # Set tree prior parameters
+    
+# Set bd model priors
+ 
+    # Diversification prior
+    # The mean of the diversification prior corresponds to an expectation
+    # of 20 lineages in 3.0 Myr, i.e. exp(rT) = 20 when T = 3 and r = 1
+    
+    diversification[i] ~ dnUniform(0.01, 4.00)     # Especificar según las simulaciones
+    turnover[i] ~ dnUniform(0.01, 0.50)            # Especificar según las simulaciones
+    rho[i] ~ dnUniform(0.50, 1.00)                 # Hemos creado este parámetro con distribución uniforme
+
+# Convert to underlying parameters
+
+    lambda[i] := diversification[i] / abs(1.0 - turnover[i])
+    mu[i]     := turnover[i] * lambda[i]
+
+    # # # Set the root age: anywhere from 0 to 20 Myr old
+    # Age of Canary Islands goes from 0.1 (El Hierro) to 20 Ma (Fuerteventura)
+    
+    rootAge[i] ~ dnUniform( 0.000001, 90.00 ) # Especificar el valor estimado
+    
+ # We define the complete tree model
+
+
+    tau[i] ~ dnBirthDeath(  lambda = lambda[i],
+                            mu = mu[i],
+                            rootAge = rootAge[i],
+                            rho = rho[i],
+                            samplingStrategy = "uniform",
+                            condition = "time",
+                            taxa = D[i].taxa()
+                        )
+
+    #alpha_M[i] ~ dnExponential(1.0)
+
+    #probs <- v( 0.125, 0.375, 0.625, 0.875 )
+
+    for ( j in 1:4 )
+        #siteRates_M[i][j] := qgamma( probs[j], alpha_M[i], alpha_M[i] )
+
+    seq_M[i] ~ dnPhyloCTMC( tree        = tau[i],
+                            Q           = Q_M[i],
+                            branchRates = clockRate_M[i],
+                            #siteRates   = siteRates_M[i],
+                            nSites      = D[i].nchar(),
+                            type        = "DNA"
+                          )
+
+    seq_M[i].clamp( D[i] )
+    
+    # add moves
+    moves[ mvi++ ] = mvScale(clockRate_M[i],lambda=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvScale(rootAge[i],lambda=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvScale(diversification[i],lambda=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvScale(turnover[i],lambda=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvNNI(tau[i], weight=10.0)
+    moves[ mvi++ ] = mvFNPR(tau[i], weight=10.0)
+    moves[ mvi++ ] = mvSubtreeScale(tau[i], weight=5.0)
+    moves[ mvi++ ] = mvNodeTimeSlideUniform(tau[i], weight=10.0)
+    moves[ mvi++ ] = mvScale(rho[i],lambda=1,tune=true,weight=1)
+    
+    #moves[ mvi ] = mvScale(alpha_M[i], lambda=1, tune=true, weight=1.0)
+    
+    
+}
+
+   
