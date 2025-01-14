@@ -87,7 +87,7 @@ for ( i in 1:D.size() )
                             condition = "time",
                             taxa = D[i].taxa()
                         )
-print
+    write(rho[i])
 
 
     seq_M[i] ~ dnPhyloCTMC( tree        = tau[i],
@@ -100,15 +100,15 @@ print
     seq_M[i].clamp( D[i] )
     
     # add moves
-    moves[ mvi++ ] = mvScale(clockRate_M[i],lambda=1,tune=true,weight=1)
-    moves[ mvi++ ] = mvScale(rootAge[i],lambda=1,tune=true,weight=1)
-    moves[ mvi++ ] = mvScale(diversification[i],lambda=1,tune=true,weight=1)
-    moves[ mvi++ ] = mvScale(turnover[i],lambda=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvSlide(clockRate_M[i],delta=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvSlide(rootAge[i],delta=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvSlide(diversification[i],delta=1,tune=true,weight=1)
+    moves[ mvi++ ] = mvSlide(turnover[i],delta=1,tune=true,weight=1)
     moves[ mvi++ ] = mvNNI(tau[i], weight=10.0)
     moves[ mvi++ ] = mvFNPR(tau[i], weight=10.0)
     moves[ mvi++ ] = mvSubtreeScale(tau[i], weight=5.0)
     moves[ mvi++ ] = mvNodeTimeSlideUniform(tau[i], weight=10.0)
-    moves[ mvi++ ] = mvScale(rho[i],lambda=1,tune=true,weight=1)   
+    #moves[ mvi++ ] = mvScale(rho[i],lambda=1,tune=true,weight=1)   
    
 }
 
