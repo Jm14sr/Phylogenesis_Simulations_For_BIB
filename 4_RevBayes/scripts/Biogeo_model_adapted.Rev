@@ -40,7 +40,7 @@ migrationRates[i] ~ dnGamma( 1.0, 1.0 )
     bio[i].clamp( B[i] )         
 
 # Make the model
-mymodel = model( bio[1] )
+mymodel = model( bio[i] )
 
 # Add moves for the biogeography part of the model
 # assuming that the molecular evolution moves are already
@@ -82,4 +82,4 @@ monitors[mni++] = mnScreen(
                              #)
                              
 mymcmc = mcmc( mymodel, monitors, moves )
-mymcmc.run( generations=100000 )
+mymcmc.run( generations=1000000 )
